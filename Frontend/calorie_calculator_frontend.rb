@@ -1,5 +1,6 @@
 # calorie_calculator_frontend.rb
 require 'tk'
+require 'tkextlib/tile'  # Added to support ttk widgets
 require_relative '../Backend/calorie_calculator_backend'
 require_relative '../Backend/calorie_calculator_database'
 
@@ -14,24 +15,38 @@ end
 
 # Main window
 root = TkRoot.new { title "Calorie Calculator" }
-root.geometry("400x600")  # Adjusted height to accommodate all widgets
+root.geometry("400x500")  # Adjusted height
 
-# Label and entry for product name
-TkLabel.new(root) { text 'Product:' }.pack(padx: 15, pady: 5, side: 'top')
-product_entry = TkEntry.new(root)
-product_entry.pack(padx: 15, pady: 5, side: 'top')
+# Set a default font for the application
+default_font = TkFont.new('family' => 'Helvetica', 'size' => 12)
 
-# Label and entry for weight
-TkLabel.new(root) { text 'Weight (grams):' }.pack(padx: 15, pady: 5, side: 'top')
-weight_entry = TkEntry.new(root)
-weight_entry.pack(padx: 15, pady: 5, side: 'top')
+# Apply the default font to the root window
+TkOption.add('*Font', default_font)
 
-# Label to display the result
-result_label = TkLabel.new(root) { text 'Result: ' }
-result_label.pack(padx: 15, pady: 10, side: 'top')
+# Create frames to organize the layout using ttk widgets
+main_frame = Tk::Tile::Frame.new(root) { padding "10 10 10 10" }.pack(fill: 'both', expand: true)
+input_frame = Tk::Tile::Labelframe.new(main_frame) { text "Calorie Calculator"; padding "10 10 10 10" }.pack(fill: 'x', padx: 10, pady: 10)
+result_frame = Tk::Tile::Frame.new(main_frame).pack(fill: 'x', padx: 10, pady: 5)
+add_product_frame = Tk::Tile::Labelframe.new(main_frame) { text "Add New Product"; padding "10 10 10 10" }.pack(fill: 'x', padx: 10, pady: 10)
 
-# Button to calculate calories
-TkButton.new(root) do
+# Style configurations
+button_style = { 'background' => '#4CAF50', 'foreground' => 'white', 'activebackground' => '#45a049', 'width' => 20 }
+label_style = { 'anchor' => 'w' }
+
+# --- Input Section ---
+
+# Product Name
+Tk::Tile::Label.new(input_frame, label_style) { text 'Product:' }.grid(row: 0, column: 0, sticky: 'w')
+product_entry = Tk::Tile::Entry.new(input_frame)
+product_entry.grid(row: 0, column: 1, pady: 5, sticky: 'we')
+
+# Weight
+Tk::Tile::Label.new(input_frame, label_style) { text 'Weight (grams):' }.grid(row: 1, column: 0, sticky: 'w')
+weight_entry = Tk::Tile::Entry.new(input_frame)
+weight_entry.grid(row: 1, column: 1, pady: 5, sticky: 'we')
+
+# Calculate Button
+Tk::Tile::Button.new(input_frame) do
   text 'Calculate Calories'
   command do
     product = product_entry.get.strip.downcase
@@ -44,7 +59,8 @@ TkButton.new(root) do
       if calories_per_100g
         # Calculate total calories using backend
         total_calories = calculator.calculate_calories(calories_per_100g, weight)
-        result_label.text = "Result: #{weight}g of #{product} has #{total_calories.round(2)} calories."
+        result_message = "#{weight}g of #{product} has #{total_calories.round(2)} calories."
+        result_label.text = result_message
       else
         result_label.text = "Product '#{product}' not found in the database."
       end
@@ -52,23 +68,28 @@ TkButton.new(root) do
       result_label.text = "Database is busy. Please try again."
     end
   end
-  pack(padx: 15, pady: 10, side: 'top')
+  grid(row: 2, column: 0, columnspan: 2, pady: 10)
 end
 
-# Separator
-TkLabel.new(root) { text '--- Add New Product ---' }.pack(padx: 15, pady: 15, side: 'top')
+# --- Result Section ---
 
-# Label and entries for adding a new product to the database
-TkLabel.new(root) { text 'New Product Name:' }.pack(padx: 15, pady: 5, side: 'top')
-new_product_entry = TkEntry.new(root)
-new_product_entry.pack(padx: 15, pady: 5, side: 'top')
+result_label = Tk::Tile::Label.new(result_frame, label_style) { text 'Result will be displayed here.' }
+result_label.pack(fill: 'x')
 
-TkLabel.new(root) { text 'Calories per 100g:' }.pack(padx: 15, pady: 5, side: 'top')
-new_calories_entry = TkEntry.new(root)
-new_calories_entry.pack(padx: 15, pady: 5, side: 'top')
+# --- Add Product Section ---
 
-# Button to add a new product
-TkButton.new(root) do
+# New Product Name
+Tk::Tile::Label.new(add_product_frame, label_style) { text 'New Product Name:' }.grid(row: 0, column: 0, sticky: 'w')
+new_product_entry = Tk::Tile::Entry.new(add_product_frame)
+new_product_entry.grid(row: 0, column: 1, pady: 5, sticky: 'we')
+
+# Calories per 100g
+Tk::Tile::Label.new(add_product_frame, label_style) { text 'Calories per 100g:' }.grid(row: 1, column: 0, sticky: 'w')
+new_calories_entry = Tk::Tile::Entry.new(add_product_frame)
+new_calories_entry.grid(row: 1, column: 1, pady: 5, sticky: 'we')
+
+# Add Product Button
+Tk::Tile::Button.new(add_product_frame) do
   text 'Add Product'
   command do
     new_product = new_product_entry.get.strip.downcase
@@ -88,7 +109,11 @@ TkButton.new(root) do
       end
     end
   end
-  pack(padx: 15, pady: 10, side: 'top')
+  grid(row: 2, column: 0, columnspan: 2, pady: 10)
 end
+
+# Configure grid weights
+input_frame.grid_columnconfigure(1, weight: 1)
+add_product_frame.grid_columnconfigure(1, weight: 1)
 
 Tk.mainloop

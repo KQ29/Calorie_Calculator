@@ -7,6 +7,11 @@ require_relative '../Backend/calorie_calculator_database'
 database = CalorieDatabase.new
 calculator = CalorieCalculator.new
 
+# Ensure the database connection is closed when the application exits
+at_exit do
+  database.close
+end
+
 # Main window
 root = TkRoot.new { title "Calorie Calculator" }
 root.geometry("400x600")  # Adjusted height to accommodate all widgets
@@ -33,14 +38,18 @@ TkButton.new(root) do
     weight = weight_entry.get.to_f
 
     # Fetch calories per 100g from the database
-    calories_per_100g = database.fetch_calories(product)
+    begin
+      calories_per_100g = database.fetch_calories(product)
 
-    if calories_per_100g
-      # Calculate total calories using backend
-      total_calories = calculator.calculate_calories(calories_per_100g, weight)
-      result_label.text = "Result: #{weight}g of #{product} has #{total_calories.round(2)} calories."
-    else
-      result_label.text = "Product '#{product}' not found in the database."
+      if calories_per_100g
+        # Calculate total calories using backend
+        total_calories = calculator.calculate_calories(calories_per_100g, weight)
+        result_label.text = "Result: #{weight}g of #{product} has #{total_calories.round(2)} calories."
+      else
+        result_label.text = "Product '#{product}' not found in the database."
+      end
+    rescue SQLite3::BusyException
+      result_label.text = "Database is busy. Please try again."
     end
   end
   pack(padx: 15, pady: 10, side: 'top')
@@ -68,11 +77,15 @@ TkButton.new(root) do
     if new_product.empty? || calories_per_100g <= 0
       result_label.text = "Please enter a valid product name and calorie value."
     else
-      database.add_product(new_product, calories_per_100g)
-      result_label.text = "Added '#{new_product}' with #{calories_per_100g} calories per 100g."
-      # Clear the entry fields
-      new_product_entry.delete(0, 'end')
-      new_calories_entry.delete(0, 'end')
+      begin
+        database.add_product(new_product, calories_per_100g)
+        result_label.text = "Added '#{new_product}' with #{calories_per_100g} calories per 100g."
+        # Clear the entry fields
+        new_product_entry.delete(0, 'end')
+        new_calories_entry.delete(0, 'end')
+      rescue SQLite3::BusyException
+        result_label.text = "Database is busy. Please try again."
+      end
     end
   end
   pack(padx: 15, pady: 10, side: 'top')

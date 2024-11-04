@@ -33,16 +33,39 @@ class CalorieDatabase
   # Method to add a new product to the database
   def add_product(name, calories_per_100g)
     @db.transaction do
-      begin
-        @db.execute("INSERT INTO products (name, calories_per_100g) VALUES (?, ?)", [name, calories_per_100g])
-        puts "Product '#{name}' added with #{calories_per_100g} calories per 100g."
-      rescue SQLite3::ConstraintException
-        @db.execute("UPDATE products SET calories_per_100g = ? WHERE name = ?", [calories_per_100g, name])
-        puts "Product '#{name}' updated with new calorie value: #{calories_per_100g} calories per 100g."
-      end
+      @db.execute("INSERT INTO products (name, calories_per_100g) VALUES (?, ?)", [name, calories_per_100g])
+      puts "Product '#{name}' added with #{calories_per_100g} calories per 100g."
+    end
+  rescue SQLite3::ConstraintException
+    # If the product already exists, update it
+    update_product(name, calories_per_100g)
+  rescue SQLite3::BusyException
+    puts "Database is busy. Please try again."
+  end
+
+  # Method to update an existing product
+  def update_product(name, calories_per_100g)
+    rows = @db.execute("SELECT id FROM products WHERE name = ?", name)
+    if rows.any?
+      @db.execute("UPDATE products SET calories_per_100g = ? WHERE name = ?", [calories_per_100g, name])
+      puts "Product '#{name}' updated with new calorie value: #{calories_per_100g} calories per 100g."
+      true
+    else
+      false
     end
   rescue SQLite3::BusyException
     puts "Database is busy. Please try again."
+    false
+  end
+
+  # Method to delete a product
+  def delete_product(name)
+    rows = @db.execute("DELETE FROM products WHERE name = ?", name)
+    rows_changed = @db.changes
+    rows_changed > 0
+  rescue SQLite3::BusyException
+    puts "Database is busy. Please try again."
+    false
   end
 
   # Close the database connection when done
